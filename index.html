@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Report</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+        .table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sales Report</h1>
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Total Sales: <span id="total-sales">$0.00</span></h3>
+            </div>
+            <div class="col-md-6">
+                <h3>Total Tax: <span id="total-tax">$0.00</span></h3>
+            </div>
+        </div>
+        <table class="table table-striped" id="sales-by-category">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Total Sales</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const salesCSV = 'data:text/csv;base64,UHJvZHVjdCxDYXRlZ29yeSxSZWdpb24sU2FsZXMsRGF0ZQpMYXB0b3AsRWxlY3Ryb25pY3MsTm9ydGgsMjUwMC4wMCwyMDI0LTAxLTE1CkRlc2ssRnVybml0dXJlLFNvdXRoLDQ1MC41MCwyMDI0LTAxLTE2Ck1vbml0b3IsRWxlY3Ryb25pY3MsRWFzdCwzODAuNzUsMjAyNC0wMS0xNwpDaGFpcixGdXJuaXR1cmUsV2VzdCwxOTkuOTksMjAyNC0wMS0xOApLZXlib2FyZCxFbGVjdHJvbmljcyxOb3J0aCw4OS45OSwyMDI0LTAxLTE5CkJvb2tzaGVsZixGdXJuaXR1cmUsU291dGgsMzIwLjAwLDIwMjQtMDEtMjAKTW91c2UsRWxlY3Ryb25pY3MsRWFzdCwzNS41MCwyMDI0LTAxLTIxClRhYmxlLEZ1cm5pdHVyZSxXZXN0LDU1MC4wMCwyMDI0LTAxLTIyCldlYmNhbSxFbGVjdHJvbmljcyxOb3J0aCwxMjUuOTksMjAyNC0wMS0yMwpMYW1wLEZ1cm5pdHVyZSxTb3V0aCw2NS4wMCwyMDI0LTAxLTI0';
+        const regionsJSON = 'data:text/json;base64,eyJOb3J0aCI6MC4wNiwic291dGgiOjAuMDUsIkVhc3QiOjAuMDQsIldlc3QiOjAuMDYsIkNlbnRyYWwiOjAuMDU1fQ==';
+
+        Promise.all([
+            fetch(salesCSV).then(r => r.text()),
+            fetch(regionsJSON).then(r => r.json())
+        ]).then(([csvText, regions]) => {
+            const parsed = Papa.parse(csvText, {header: true, dynamicTyping: true, skipEmptyLines: true, delimitersToGuess: [',', '	', '|']});
+            console.log(parsed.data);
+
+            const headers = Object.keys(parsed.data[0]).map(k => k.trim());
+            const categoryIndex = headers.indexOf('Category');
+            const salesIndex = headers.indexOf('Sales');
+            const regionIndex = headers.indexOf('Region');
+
+            const categoryTotals = {};
+            let totalSales = 0;
+
+            parsed.data.forEach(row => {
+                const category = row[categoryIndex].trim();
+                const sales = parseFloat(row[salesIndex]) || 0;
+                totalSales += sales;
+
+                if (!categoryTotals[category]) {
+                    categoryTotals[category] = 0;
+                }
+                categoryTotals[category] += sales;
+            });
+
+            const salesByCategoryTableBody = document.querySelector("#sales-by-category tbody");
+            for (const category in categoryTotals) {
+                const row = document.createElement("tr");
+                const categoryCell = document.createElement("td");
+                const salesCell = document.createElement("td");
+
+                categoryCell.textContent = category;
+                salesCell.textContent = `$${categoryTotals[category].toFixed(2)}`;
+
+                row.appendChild(categoryCell);
+                row.appendChild(salesCell);
+                salesByCategoryTableBody.appendChild(row);
+            }
+
+            document.querySelector("#total-sales").textContent = `$${totalSales.toFixed(2)}`;
+
+            let totalTax = 0;
+            parsed.data.forEach(row => {
+                const region = row[regionIndex].trim();
+                const sales = parseFloat(row[salesIndex]) || 0;
+                const taxRate = regions[region] || 0;
+                totalTax += sales * taxRate;
+            });
+
+            document.querySelector("#total-tax").textContent = `$${totalTax.toFixed(2)}`;
+        });
+    </script>
+</body>
+</html>
